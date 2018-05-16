@@ -1,0 +1,8 @@
+Header header
+sensor_msgs/PointCloud2 pointcloud
+sensor_msgs/Imu pose
+geometry_msgs/Vector3 angular_acceleration
+std_msgs/Float64 coorx
+std_msgs/Float64 coory
+std_msgs/Int16 id
+std_msgs/Int16 sampling_rate

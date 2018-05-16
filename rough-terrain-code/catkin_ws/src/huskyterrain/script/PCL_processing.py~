@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+import rospy
+from std_msgs.msg import String
+from sensor_msgs.msg import PointCloud2
+def callback(data):
+  rospy.loginfo("0"+type(data.data[0]))
+  rospy.loginfo("1"+str(data.data[1]))
+  rospy.loginfo("2"+str(data.data[2]))
+def listener():
+  rospy.init_node('listener', anonymous=True)  
+  rospy.Subscriber('/camera/depth/points', PointCloud2, callback)
+  rospy.spin();   
+if __name__ == '__main__':
+  listener()

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+	
+	<include  file = "$(find huskyterrain)/launch/huskycontrol_sample.launch"/>
+        <node name = "odom_fake_node" pkg = "huskyterrain" type="odometry_fake.py" output="screen" required="true"/>
+	<include file = "$(find husky_viz)/launch/view_robot.launch"/>
+	<include file = "$(find husky_navigation)/launch/move_base_mapless_demo.launch"/>
+  	<node name = "traversability_write_node" pkg = "huskyterrain" type="traversability_write.py" output="screen" />
+	<node name = "simple_navigation_goals_node" pkg = "simple_navigation_goals" type="simple_navigation_goals" output="screen" />
+</launch>

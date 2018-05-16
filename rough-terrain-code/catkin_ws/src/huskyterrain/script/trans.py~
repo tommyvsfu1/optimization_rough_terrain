@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+import rospy
+from sensor_msgs.msg import Imu
+from huskyterrain.msg import imutrans
+from huskyterrain.msg import imutransArray
+import tf
+import math
+import numpy as np
+import yaml
+import pickle
+def callback(msg):
+	rospy.loginfo("start")
+	traversability =[0,0,0,0,0]
+	array = []
+	for i in msg.data:
+		x = np.array([i.angular_acceleration.x, i.angular_acceleration.y, i.pose.orientation.x,i.pose.orientation.y,9.8])
+		array.append(x)
+	#array = np.asarray(msg.data)
+	rospy.loginfo(len(array))
+	if (len(array) != 0):
+		ex_ = sum(array)/ float(len(array))
+		for i in range(len(array)):
+			traversability += (ex_ - array[i])**2
+	del array[:]
+	
+	rospy.loginfo(str(traversability))
+	
+	#data = dict(
+	#		str(traversability)
+	#)
+	Mylist = [msg.data[0].desx, msg.data[0].desy,traversability]
+	with open('data.yml', 'a') as outfile:
+    		#yaml.dump(data, outfile, default_flow_style=False)
+		outfile.write(str(Mylist)+'\n')
+		#pickle.dump(traversability, outfile)
+	
+if __name__ == '__main__':
+  rospy.init_node('trans', anonymous=True)  
+  rospy.Subscriber('duckiemap_ground_truth', imutransArray, callback)
+  rospy.spin()

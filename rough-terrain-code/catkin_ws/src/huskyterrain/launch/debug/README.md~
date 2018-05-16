@@ -1,0 +1,4 @@
+huskytraver_for_sampling_wrong_point.launch
+
+順序
+sampling.py -> huskytraver_for_sampling_wrong_point.launch -> traversability_write -> simple_goal.cpp

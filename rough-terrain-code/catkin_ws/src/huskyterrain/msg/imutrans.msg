@@ -1,0 +1,8 @@
+sensor_msgs/Imu pose
+geometry_msgs/Vector3 angular_acceleration
+float32 coorx
+float32 coory
+float32 desx
+float32 desy
+int32 id
+int32 sampling_rate

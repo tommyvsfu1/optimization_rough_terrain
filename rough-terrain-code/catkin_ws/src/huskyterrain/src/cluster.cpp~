@@ -1,0 +1,172 @@
+#include <ros/ros.h>
+// PCL specific includes
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/ros/conversions.h>
+#include <pcl/point_types.h>
+#include <pcl/io/io.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/point_cloud.h>   
+#include <pcl/kdtree/kdtree_flann.h> 
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/conversions.h>
+#include <pcl_ros/transforms.h>
+#include <iostream>
+#include <vector>
+#include <ctime>
+#include <visualization_msgs/Marker.h>
+#include <tf/transform_listener.h>
+#include "pcl_ros/impl/transforms.hpp"
+#include "huskyterrain/pcl_polygon.h"
+#include "huskyterrain/view_poly.h"
+#include <cmath>
+#define PI 3.14159265
+int count = 1;
+class block {
+
+public:
+  block() {
+    // Create a ROS subscriber for the input point cloud
+     sub = nh.subscribe ("/pclprocessing1", 1, &block::cloud_cb, this);
+     // Create a ROS publisher for the output model coefficients
+    //pub = nh.advertise<pcl_msgs::ModelCoefficients> ("output", 1);
+     pub = nh.advertise<huskyterrain::view_poly> ("/pclprocessing2", 1);
+    
+  }
+
+//void  cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
+void  cloud_cb (const huskyterrain::pcl_polygon msg)
+{
+
+  //pcl::PCLPointCloud2 pcl_pc2;
+  //pcl_conversions::toPCL(input,pcl_pc2);  
+  //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+  //pcl::fromPCLPointCloud2(pcl_pc2,*cloud); 
+
+	huskyterrain::view_poly octreedata;
+	octreedata.header = msg.header;
+	tf::Quaternion q(msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w);
+	tf::Matrix3x3 m(q);
+	double roll, pitch, yaw;
+	m.getRPY(roll, pitch, yaw);
+	std::cout << msg.coorx << "," << msg.coory << std::endl;
+	//std::cout << "Roll: " << roll << ", Pitch: " << pitch << ", Yaw: " << yaw << std::endl; 
+	/*
+	float x,y ;
+	if (msg.coorx - int(msg.coorx) > 0) {
+		msg.coorx = int(msg.coorx)+0.5; 
+		if (msg.coory - int(msg.coory) > 0) msg.coory = int(msg.coory)+0.5;
+		else int(msg.coory)-0.5;
+	}
+	else { 
+		msg.coorx = int(msg.coorx) - 0.5;
+		if (msg.coory - int(msg.coory)>0) msg.coory = int(msg.coory)+0.5;
+		else msg.coory = int(msg.coory)-0.5;
+	}
+	x = msg.coorx;
+	y = msg.coory;
+	bool flag = true;
+	if ( cos(yaw * PI/180) > 0) {
+		flag = flag;
+	}
+	else {
+		flag = !flag;
+	}
+*/
+	//for (int i = 0; i < 5; i++) {
+for (int i = 0; i < 5; i++) {
+for (int count = 0; count < 5; count++) {
+	float offsetx = 1.0;
+	float offsety = 1.0;
+	if (fabs(cos(yaw)) >= fabs(sin(yaw)) ){
+		if (cos(yaw) < 0)
+			offsetx = - offsetx;
+		//if (sin(yaw) < 0)
+			//offsety = - offsety;
+		if (count % 5 == 3) {
+			octreedata.coorx[count+5*i] = msg.coorx + i*offsetx;
+			octreedata.coory[count+5*i] = msg.coory;			
+		}
+		if (count % 5 == 2) {
+			octreedata.coory[count+5*i] = msg.coory - offsety;
+			octreedata.coorx[count+5*i] = msg.coorx + i*offsetx;
+		}
+		if (count % 5 == 1) {
+			octreedata.coory[count+5*i] = msg.coory - 2* offsety;
+			octreedata.coorx[count+5*i] = msg.coorx + i*offsetx;
+		}
+		if (count % 5 == 3) {
+			octreedata.coory[count+5*i] = msg.coory + offsety;
+			octreedata.coorx[count+5*i] = msg.coorx + i*offsetx;
+		}
+		if (count % 5 == 4) {
+			octreedata.coory[count+5*i] = msg.coory + 2* offsety;
+			octreedata.coorx[count+5*i] = msg.coorx + i*offsetx;
+		}
+	}
+	else {
+
+		//if (cos(yaw) < 0)
+			//offsetx = - offsetx;
+		if (sin(yaw) < 0)
+			offsety = - offsety;
+		if (count % 5 == 3) {
+			octreedata.coory[count+5*i] = msg.coory + i*offsety;
+			octreedata.coorx[count+5*i] = msg.coorx;			
+		}
+		if (count % 5 == 2) {
+			octreedata.coorx[count+5*i] = msg.coorx - offsetx;
+			octreedata.coory[count+5*i] = msg.coory + i*offsety;
+		}
+		if (count % 5 == 1) {
+			octreedata.coorx[count+5*i] = msg.coorx - 2* offsetx;
+			octreedata.coory[count+5*i] = msg.coory + i*offsety;
+		}
+		if (count % 5 == 3) {
+			octreedata.coorx[count+5*i] = msg.coorx + offsetx;
+			octreedata.coory[count+5*i] = msg.coory + i*offsety;
+		}
+		if (count % 5 == 4) {
+			octreedata.coorx[count+5*i] = msg.coorx + 2* offsetx;
+			octreedata.coory[count+5*i] = msg.coory + i*offsety;
+		}
+
+	}
+	octreedata.id[count+5*i] = count + 5*i;
+	//std::cout << octreedata.coorx[count+5*i] << octreedata.coory[count+5*i] < std::endl;
+			
+}		
+}
+	
+	
+	octreedata.pointcloud = msg.pointcloud;
+	pub.publish(octreedata);
+}
+  
+private :
+    ros::NodeHandle nh;
+    //huskyterrain::view_poly octreedata;
+    
+    ros::Subscriber sub;
+
+    ros::Publisher vis_pub ;
+
+// Create a ROS publisher for the output model coefficients
+    //pub = nh.advertise<pcl_msgs::ModelCoefficients> ("output", 1);
+    ros::Publisher pub ;
+    // Spin
+    tf::TransformListener tf_listener; 
+};
+ int main (int argc, char** argv)
+  {
+// Initialize ROS
+    ros::init (argc, argv, "cluster");
+
+    //ros::Rate rate(0.01);
+    block cc;
+    ros::spin ();
+}
+
+

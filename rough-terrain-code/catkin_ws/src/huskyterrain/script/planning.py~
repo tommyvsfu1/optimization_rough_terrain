@@ -1,0 +1,240 @@
+#!/usr/bin/env python
+import rospy
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Point
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Imu
+import math
+import threading
+import tf
+import numpy as np
+from huskyterrain.msg import imutrans
+class Planning():
+	def __init__(self,x,y):
+		#data member
+		self.position = Odometry()
+		#self.control = Twist()
+		self.des = Pose()
+		self.des.position.x = x
+		self.des.position.y = y
+		self.command = Pose()
+		self.state = 0
+		self.tmp = 0
+		self.sensor = []
+		self.count = 0
+
+		# ground truth data
+		self.r = 0.0
+		self.p = 0.0
+		self.y = 0.0
+		self.accr = 0.0
+		self.accp = 0.0
+		self.accy = 0.0
+		self.ground_truth = imutrans()
+		#Parameter
+		self.coor = 0.0
+		
+		# Thread
+		self.t1 = threading.Thread(target=self.f1,name='t1')
+		self.t2 = threading.Thread(target=self.f2,name='t2')
+		self.t3 = threading.Thread(target=self.f3,name='t3')
+		self.count = 0
+		self.threadC = threading.Condition()	
+	
+		# Pub/Sub
+  		self.pub = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
+  		self.duckpub = rospy.Publisher('duckiemap_ground_truth', imutrans, queue_size = 1)
+  		rospy.Subscriber('/ground_truth/state', Odometry, self.cbtrans)
+  		rospy.Subscriber('/imu/data', Imu, self.cbimu)
+  		rospy.Subscriber('/angularaccerlation',Point, self.cbangular)
+		self.t1.start()
+		self.t2.start()
+
+	def Ru_state(self): #Thread
+		#self.threadC.acquire()
+		print self.state
+		if (self.state == 1):
+			cmd = Twist()
+	        	cmd.linear.x = 0.0  
+	        	cmd.linear.y = 0.0  
+	        	cmd.angular.z = 0.3
+	        	self.pub.publish(cmd) 
+
+		#self.threadC.acquire() 
+	def Lu_state(self): #Thread
+		#self.threadC.acquire()
+		print self.state
+		if (self.state == 2):
+			cmd = Twist()
+	        	cmd.linear.x = 0.0  
+	        	cmd.linear.y = 0.0  
+	        	cmd.angular.z = -0.3
+	        	self.pub.publish(cmd) 
+
+		#self.threadC.acquire() 
+	def Fu_state(self): #Thread
+		#self.threadC.acquire()
+		print self.state
+		if (self.state == 0):
+			cmd = Twist()
+	        	cmd.linear.x = 0.5  
+	        	cmd.linear.y = 0.0  
+	        	cmd.angular.z = 0.0
+	        	self.pub.publish(cmd) 
+
+		#self.threadC.acquire() 
+	def cbtrans(self,msg):# Thread
+			self.threadC.acquire()
+		        self.command.position.x = math.sqrt( (msg.pose.pose.position.x - self.des.position.x) ** 2 + (msg.pose.pose.position.y - self.des.position.y) ** 2)
+			self.command.position.y = math.atan2( (self.des.position.y - msg.pose.pose.position.y ) , (self.des.position.x - msg.pose.pose.position.x ) )
+			#if (self.command.position.x < 0.1):
+			if (len(self.sensor) < 150):
+					rospy.loginfo("the sensor is")
+					rospy.loginfo(str(self.y))
+					self.sensor.append(self.y)
+			else :
+					print "sampleing down" 
+					del self.sensor[:]
+ 					### DO RVIZ MARKER
+
+
+			# don't use math.atan(), i don't know why it can't work
+			#print self.command.position.x
+			#print self.command.position.y
+			self.maptoControl(self.command.position.x,self.command.position.y)	
+			self.threadC.release()
+
+	# This is put in the count polygon variable, you should know the whole polygon number in the map, or just to split it	
+        def mapcoor(self):
+		self.threadC.acquire()
+		default_header = 'planning_node/map/'
+		path_header = 'road'
+		path_header = path_header+str(self.count)
+		right_header = '/right/exposure'
+		left_header = '/left/exposure'
+		header_1 = default_header+path_header+right_header
+		self.des.position.x = rospy.get_param(header_1)
+		header_2 = default_header+path_header+left_header
+		self.des.position.y = rospy.get_param(header_2)
+		self.threadC.release()
+	def maptoControl(self, d, phi):
+	        self.threadC.acquire()
+		#print self.state
+		#print math.degrees(phi)
+		#rospy.loginfo(str(math.degrees(phiosl)))
+		n1 = np.array([math.cos(self.y),math.sin(self.y)])
+		n2 = np.array([math.cos(phi), math.sin(phi)])
+		n3 = np.inner(n1,n2)
+		n4 = n2 - n1
+		#print n1[0],n1[1]
+		#print n2[0],n2[1]
+		#print n3
+		phi = math.degrees(math.acos(np.inner(n1,n2))) #positive sign, negative
+		if n4[0] < 0:
+			phi = - phi
+
+		#rospy.loginfo(str(phi))
+		rospy.loginfo("state"+str(self.state))
+		rospy.loginfo("d is")
+		rospy.loginfo(str(d))
+		rospy.loginfo("phi is")
+		rospy.loginfo(str(phi))
+		#print
+		if d < 0.05 and self.state >= 0: ## can't not to be too small
+			self.state = -1 
+		## rotation checking first
+		elif phi >= 30.0 and self.state <= 0:
+			self.state = 1
+		elif phi <= -30.0 and self.state <= 0 :
+			self.state = 2
+		
+		## if angle is correct, then move forward (or it may stright in the same vector)
+		elif abs(phi) <= 10 and (n3 > 0):
+			self.state = 0
+		#else :
+		#	self.state = 1;
+
+		self.control(d)
+		#if not self.t3.isAlive():
+			#self.t3.start()
+		self.threadC.release()
+	def control(self,d):
+	        self.threadC.acquire()
+		#rospy.loginfo(str("countis")+str(self.count))
+		rospy.loginfo("the des")
+		rospy.loginfo(str(self.des.position.x)+" "+str(self.des.position.y))
+		rospy.loginfo("count"+str(self.count))
+		#rospy.loginfo("coor is")
+		#rospy.loginfo(str(self.coor))
+		if (self.state == 1):
+			cmd = Twist()
+	        	cmd.linear.x = 0.0  
+	        	cmd.linear.y = 0.0  
+	        	cmd.angular.z = 1.0
+	        	self.pub.publish(cmd) 
+		if (self.state == 2):
+			cmd = Twist()
+	        	cmd.linear.x = 0.0  
+	        	cmd.linear.y = 0.0  
+	        	cmd.angular.z = -1.0
+	        	self.pub.publish(cmd) 
+		if (self.state == 0):
+			cmd = Twist()
+	        	cmd.linear.x = 0.5  
+	        	cmd.linear.y = 0.0  
+	        	cmd.angular.z = 0.0
+	        	self.pub.publish(cmd) 
+		if (self.state == -1):
+			cmd = Twist()
+	        	cmd.linear.x = 0.0  
+	        	cmd.linear.y = 0.0  
+	        	cmd.angular.z = 0.0
+			if (self.count <= 7 and d < 0.05):
+				self.count += 1
+				self.mapcoor()
+				
+	        	self.pub.publish(cmd)
+		self.ground_truth.coorx = self.des.position.x
+		self.ground_truth.coory = self.des.position.y
+		self.duckpub.publish(self.ground_truth)
+		self.threadC.release()	
+			
+	def f1(self):
+		self.threadC.acquire()
+		self.threadC.wait()
+		self.threadC.release()
+	def f2(self):
+		self.threadC.acquire()
+		self.threadC.wait()
+		self.threadC.release()
+	def f3(self):
+		self.threadC.acquire()
+		self.control()
+		self.threadC.release()
+		self.t3 = threading.Thread(target=self.f3,name='t3')
+	def cbimu(self,msg):
+		self.threadC.acquire()
+		self.r,self.p,self.y = tf.transformations.euler_from_quaternion([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+		#print math.degrees(self.y)
+		self.ground_truth.pose.orientation.x = self.r
+		self.ground_truth.pose.orientation.y = self.p
+		self.ground_truth.pose.orientation.z = self.y
+		self.ground_truth.header = msg.header
+		self.threadC.release()
+  	def cbangular(self,msg):
+		self.threadC.acquire()
+		self.accr = msg.x
+		self.accp = msg.y
+		self.accy = msg.z
+		self.ground_truth.angular_acceleration.x  = msg.x
+		self.ground_truth.angular_acceleration.y  = msg.y
+		self.ground_truth.angular_acceleration.z  = msg.z
+		self.threadC.release()
+		
+		  
+if __name__ == '__main__':
+  rospy.init_node('planning', anonymous=True)  
+  foo = Planning(1,0)
+  rospy.spin()

@@ -1,0 +1,73 @@
+map:
+  road1:
+    right:
+        exposure: 2.0 
+    left:
+        exposure: 0.0
+  road2:
+    right:
+        exposure: 3.0 
+    left:
+        exposure: 0.0
+  road3:
+    right:
+        exposure: 4.0 
+    left:
+        exposure: 0.0
+  road4:
+    right:
+        exposure: 4.0 
+    left:
+        exposure: 1.0
+  road5:
+    right:
+        exposure: 3.0 
+    left:
+        exposure: 1.0
+  road6:
+    right:
+        exposure: 2.0 
+    left:
+        exposure: 1.0
+  road7:
+    right:
+        exposure: 1.0 
+    left:
+        exposure: 1.0
+  road8:
+    right:
+        exposure: 0.0 
+    left:
+        exposure: 1.0
+  road9:
+    right:
+        exposure: 0.0 
+    left:
+        exposure: 2.0
+  road10:
+    right:
+        exposure: 1.0 
+    left:
+        exposure: 2.0
+  road11:
+    right:
+        exposure: 2.0 
+    left:
+        exposure: 2.0
+  road12:
+    right:
+        exposure: 3.0 
+    left:
+        exposure: 2.0
+  road13:
+    right:
+        exposure: 4.0 
+    left:
+        exposure: 2.0
+  road14:
+    right:
+        exposure: 4.0 
+    left:
+        exposure: 3.0
+
+

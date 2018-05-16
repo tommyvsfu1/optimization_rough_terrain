@@ -1,0 +1,66 @@
+#!/usr/bin/env python  
+import roslib
+import rospy
+import tf
+import math
+from time import time, sleep
+import tf
+from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo
+import threading
+class data_transfer():
+	def __init__(self):
+		
+		
+		# Thread
+		self.t1 = threading.Thread(target=self.f1,name='t1')
+		self.t2 = threading.Thread(target=self.f2,name='t2')
+		self.t3 = threading.Thread(target=self.f3,name='t3')
+		self.count = 0
+		self.threadC = threading.Condition()	
+	
+		# Pub/Sub
+     		self.pub = rospy.Publisher('camera_info', CameraInfo, queue_size = 5)
+     		self.pub1 = rospy.Publisher('depth/image_rect', Image, queue_size = 5)
+     		self.pub2 = rospy.Publisher('depth/camera_info',  CameraInfo, queue_size = 5)
+
+     		rospy.Subscriber('camera/camera_info',CameraInfo,self.cb2)
+    		rospy.Subscriber('/camera/depth/image_raw',Image,self.cb1)
+		#self.t1.start()
+		#self.t2.start()
+	def cb1(self,msg):
+		tmp1 = Image()
+		#tmp1 = msg
+		tmp1.header = msg.header
+		tmp1.height = msg.height
+		tmp1.width = msg.width
+		tmp1.encoding = msg.encoding
+		tmp1.is_bigendian = msg.is_bigendian
+		tmp1.step = msg.step
+		tmp1.data = msg.data
+		self.pub1.publish(tmp1)
+	def cb2(self,msg):
+		tmp2 = CameraInfo()
+		tmp2 = msg
+		tmp2.header = msg.header
+		self.pub.publish(tmp2)
+		self.pub2.publish(tmp2)
+
+	def f1(self):
+		self.threadC.acquire()
+		self.threadC.wait()
+		self.threadC.release()
+	def f2(self):
+		self.threadC.acquire()
+		self.threadC.wait()
+		self.threadC.release()
+	def f3(self):
+		self.threadC.acquire()
+		self.control()
+		self.threadC.release()
+		self.t3 = threading.Thread(target=self.f3,name='t3')
+if __name__ == '__main__':
+     rospy.init_node('data_transfer_for_openni')
+     foo = data_transfer()
+     rospy.spin()
+
